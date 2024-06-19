@@ -65,5 +65,10 @@
     "mocha": "2.5.x",
     "rimraf": "2.6.x",
     "should": "13.1.x"
+  },
+  "nyc": {
+    "include": ["helpers/**/*.js"],
+    "reporter": ["text", "html"],
+    "all": true
   }
 }
