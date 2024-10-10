@@ -1,5 +1,5 @@
-export const catalogueUrl = "http://catalogue";
-export const tagsUrl = "http://catalogue/tags";
+export const catalogueUrl = "http://172.17.0.1:8081";
+export const tagsUrl = "http://172.17.0.1:8081/tags";
 export const cartsUrl = "http://carts/carts";
 export const ordersUrl = "http://orders";
 export const customersUrl = "http://user/customers";

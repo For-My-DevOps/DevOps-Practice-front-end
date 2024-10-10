@@ -1,5 +1,6 @@
 import express from 'express';
 import morgan from 'morgan';
+import path from 'path';
 import cookieParser from 'cookie-parser';
 import session from 'express-session';
 import config from './config.js';
@@ -12,17 +13,26 @@ import metrics from './api/metrics/index.js';
 
 const app = express();
 
+// Middleware to remove trailing slash from all incoming requests
+app.use((req, res, next) => {
+    if (req.url !== '/' && req.url.endsWith('/')) {
+        req.url = req.url.slice(0, -1);
+    }
+    next();
+});
+
+
 // Middleware for handling slash rewrites and static files
 app.use(helpers.rewriteSlash);
 app.use(metrics);
 app.use(express.static('public'));
 
-// Session management setup with Redis fallback to local session manager
-if (config.session_redis.store) {
-    console.log('Using Redis-based session manager');
+// Session management setup
+if (process.env.SESSION_REDIS) {
+    console.log('Using the Redis-based session manager');
     app.use(session(config.session_redis));
 } else {
-    console.log('Using in-memory session manager');
+    console.log('Using local session manager');
     app.use(session(config.session));
 }
 
@@ -49,7 +59,6 @@ app.use(catalogue);
 app.use(orders);
 app.use(user);
 
-// Error handling middleware
 app.use(helpers.errorHandler);
 
 // Start the server
@@ -57,3 +66,4 @@ const PORT = process.env.PORT || 8079;
 app.listen(PORT, () => {
     console.log(`App now running in ${app.get('env')} mode on port ${PORT}`);
 });
+
