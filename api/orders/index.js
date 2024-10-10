@@ -1,20 +1,19 @@
-'use strict';
+import async from 'async';
+import express from 'express';
+import axios from 'axios';
+import * as endpoints from '../endpoints.js';
+import * as helpers from '../../helpers/index.js';
 
-const async = require("async");
-const express = require("express");
-const axios = require("axios");
-const endpoints = require("../endpoints");
-const helpers = require("../../helpers");
 const app = express();
 
 // List orders for the current logged-in user
-app.get("/orders", async (req, res, next) => {
+app.get('/orders', async (req, res, next) => {
     try {
-        console.log("Request received with body:", JSON.stringify(req.body));
+        console.log('Request received with body:', JSON.stringify(req.body));
         const logged_in = req.cookies.logged_in;
 
         if (!logged_in) {
-            throw new Error("User not logged in.");
+            throw new Error('User not logged in.');
         }
 
         const custId = req.session.customerId;
@@ -27,7 +26,7 @@ app.get("/orders", async (req, res, next) => {
 });
 
 // Proxy GET requests to orders API
-app.get("/orders/*", async (req, res, next) => {
+app.get('/orders/*', async (req, res, next) => {
     try {
         const url = `${endpoints.ordersUrl}${req.url}`;
         const response = await axios.get(url, { responseType: 'stream' });
@@ -38,13 +37,13 @@ app.get("/orders/*", async (req, res, next) => {
 });
 
 // Create a new order for the logged-in user
-app.post("/orders", async (req, res, next) => {
+app.post('/orders', async (req, res, next) => {
     try {
-        console.log("Request received with body:", JSON.stringify(req.body));
+        console.log('Request received with body:', JSON.stringify(req.body));
         const logged_in = req.cookies.logged_in;
 
         if (!logged_in) {
-            throw new Error("User not logged in.");
+            throw new Error('User not logged in.');
         }
 
         const custId = req.session.customerId;
@@ -81,4 +80,4 @@ app.post("/orders", async (req, res, next) => {
     }
 });
 
-module.exports = app;
+export default app;

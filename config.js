@@ -1,8 +1,6 @@
-'use strict';
-
-const session = require("express-session");
-const RedisStore = require('connect-redis').default;
-const Redis = require('ioredis');
+import session from 'express-session';
+import RedisStore from 'connect-redis';
+import Redis from 'ioredis';
 
 let redisClient;
 let redisStore;
@@ -31,7 +29,7 @@ try {
     redisEnabled = false;
 }
 
-module.exports = {
+const config = {
     session: {
         name: 'md.sid',
         secret: 'sooper secret',
@@ -52,3 +50,5 @@ module.exports = {
         saveUninitialized: true,
     }
 };
+
+export default config;

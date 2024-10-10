@@ -1,7 +1,6 @@
-'use strict';
+import express from 'express';
+import client from 'prom-client';
 
-const express = require("express");
-const client = require('prom-client');
 const app = express();
 
 const metric = {
@@ -45,9 +44,9 @@ const metricsMiddleware = (req, res, next) => {
 app.use(metricsMiddleware);
 
 // Endpoint to expose metrics
-app.get("/metrics", (req, res) => {
-  res.header("content-type", "text/plain");
+app.get('/metrics', (req, res) => {
+  res.header('content-type', 'text/plain');
   res.end(client.register.metrics());
 });
 
-module.exports = app;
+export default app;
