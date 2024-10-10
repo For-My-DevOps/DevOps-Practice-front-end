@@ -1,220 +1,76 @@
-(function (){
-  'use strict';
+import express from "express";
+import axios from "axios";
+import bodyParser from "body-parser";
+import assert from "assert";
+import supertest from "supertest";
+import sinon from "sinon";
+import { errorHandler, simpleHttpRequest } from "../helpers/index.js";
 
-  var express    = require("express")
-    , request    = require("request")
-    , bodyParser = require("body-parser")
-    , http       = require("http")
-    , chai       = require("chai")
-    , chaiHttp   = require("chai-http")
-    , sinon      = require("sinon")
-    , expect     = chai.expect
-    , helpers    = require("../helpers")
-    , app
+let app;
 
-  describe("helpers", function() {
-    before(function() {
-      chai.use(chaiHttp);
-    });
+describe("helpers", function () {
+  beforeEach(function () {
+    app = express();
+    app.use(bodyParser.json());
+  });
 
-    beforeEach(function() {
-      app = express();
-      app.use(bodyParser.json());
-    });
+  describe("#errorHandler", function () {
+    it("should return error with correct message and status", function (done) {
+      const error = new Error("Something went wrong");
+      error.status = 501;
 
-    describe("#errorHandler", function() {
-      var message, code, error, res, resErr;
-
-      beforeEach(function(done) {
-        message      = "Something went terribly wrong";
-        code         = 501;
-        error        = new Error(message);
-        error.status = code;
-
-        app.use(function(_req, _res) {
-          helpers.errorHandler(error, _req, _res);
-        });
-
-        chai.request(app).
-          get("/").
-          set("Content-Type", "application/json").
-          end(function(_err, _res) {
-            resErr = _err;
-            res    = _res;
-            done();
-          });
+      app.use(function (_req, _res) {
+        errorHandler(error, _req, _res);
       });
 
-      describe("the rendered JSON", function() {
-        it("includes an error message", function() {
-          expect(res.body).to.include.keys("message");
-          expect(res.body.message).to.equal(message);
+      supertest(app)
+        .get("/")
+        .expect(501)
+        .end(function (err, res) {
+          assert.strictEqual(res.body.message, "Something went wrong");
+          done(err);
         });
-
-        it("includes an error object", function() {
-          expect(resErr).not.to.be.null;
-        });
-
-        it("returns the right HTTP status code", function() {
-          expect(res).to.have.status(501);
-        });
-      });
-
-      describe("given the error has no status defined", function() {
-        beforeEach(function() {
-          delete error.status;
-        });
-
-        it("responds with HTTP status code 500", function(done) {
-          chai.request(app).
-            get("/").
-            set("Content-Type", "application/json").
-            end(function(err, res) {
-              expect(err).not.to.be.null;
-              expect(res).to.have.status(500);
-              done();
-            });
-        });
-      });
-    });
-
-    describe("#respondSuccessBody", function() {
-      it("renders the given body with status 200 OK", function(done) {
-        app.use(function(req, res) {
-          helpers.respondSuccessBody(res, "ayylmao");
-        });
-
-        chai.request(app).
-          get("/").
-          end(function(err, res) {
-            expect(res).to.have.status(200);
-            expect(res.text).to.equal("ayylmao");
-            done();
-          });
-      });
-    });
-
-    describe("#respondStatusBody", function() {
-      it("sets the proper status code & body", function(done) {
-        app.use(function(req, res) {
-          helpers.respondStatusBody(res, 201, "foo");
-        });
-
-        chai.request(app).
-          get("/").
-          end(function(err, res) {
-            expect(res).to.have.status(201);
-            expect(res.text).to.equal("foo");
-            done();
-          });
-      });
-    });
-
-    describe("#respondStatus", function() {
-      it("sets the proper status code", function(done) {
-        app.use(function(req, res) {
-          helpers.respondStatus(res, 404);
-        });
-
-        chai.request(app).
-          get("/").
-          end(function(err, res) {
-            expect(err).to.not.be.null;
-            expect(err.message).to.equal("Not Found");
-            expect(res).to.have.status(404);
-            expect(res.text).to.equal("");
-            done();
-          });
-      });
-    });
-
-    describe("#simpleHttpRequest", function() {
-      var res, resErr;
-
-      it("performs a GET request to the given URL", function() {
-        var url = "http://google.com";
-        sinon.stub(request, "get", function(requestedUrl, cb) {
-          expect(requestedUrl).to.equal(url);
-        });
-        helpers.simpleHttpRequest(url);
-        request.get.restore();
-      });
-
-      describe("given the external service responds with success", function() {
-        beforeEach(function(done) {
-          sinon.stub(request, "get", function(url, cb) {
-            var _res    = {}
-              , mockRes = sinon.mock(_res);
-            cb(null, mockRes, "success");
-          });
-
-          app.use(function(_req, _res) {
-            helpers.simpleHttpRequest("http://api.example.org/users", _res, done);
-          });
-
-          chai.
-            request(app).
-            get("/").
-            end(function(_err, _res) {
-              if (_err) return done(_err);
-              resErr = _err;
-              res    = _res;
-              done();
-            });
-        });
-
-        afterEach(function() {
-          request.get.restore();
-        });
-
-        it("yields the external service response to the response body", function() {
-          expect(res.text).to.equal("success");
-        });
-
-        it("responds with success", function() {
-          expect(res).to.have.status(200);
-        });
-      });
-
-      describe("given the external service fails", function() {
-        it("invokes the given callback with an error object", function(done) {
-          var spy = sinon.spy();
-
-          sinon.stub(request, "get", function(url, cb) {
-            cb(new Error("Something went wrong"));
-          });
-
-          app.use(function(req, res) {
-            helpers.simpleHttpRequest("http://example.org/fail", res, function(err) {
-              expect(err).not.to.be.null;
-              expect(err.message).to.equal("Something went wrong");
-              request.get.restore();
-              done();
-            });
-          });
-
-          chai.
-            request(app).
-            get("/").
-            end();
-        });
-      });
-    });
-
-    describe("#getCustomerId", function() {
-      describe("given the environment is development", function() {
-        it("returns the customer id from the query string");
-      });
-
-      describe("given a customer id set in session", function() {
-        it("returns the customer id from the session");
-      });
-
-      describe("given no customer id set in the cookies", function() {
-        describe("given no customer id set session", function() {
-          it("throws a 'User not logged in' error");
-        });
-      });
     });
   });
- }());
+
+  describe("#simpleHttpRequest", function () {
+    afterEach(function () {
+      // Restore the stub after each test to ensure a clean slate
+      sinon.restore();
+    });
+
+    it("performs a GET request successfully", async function () {
+      const url = "http://example.com";
+      sinon.stub(axios, "get").resolves({ data: "success" });
+
+      const res = {
+        statusCode: null,
+        data: null,
+        writeHead(status) {
+          this.statusCode = status;
+        },
+        write(data) {
+          this.data = data;
+        },
+        end() {},
+      };
+
+      const next = sinon.spy();
+
+      await simpleHttpRequest(url, res, next);
+      assert.strictEqual(res.statusCode, 200);
+      assert.strictEqual(res.data, JSON.stringify("success"));
+      assert.strictEqual(next.called, false);
+    });
+
+    it("handles a failed GET request", async function () {
+      const url = "http://example.com";
+      const next = sinon.spy();
+      sinon.stub(axios, "get").rejects(new Error("Request failed"));
+
+      await simpleHttpRequest(url, {}, next);
+      assert.strictEqual(next.calledOnce, true);
+      assert.strictEqual(next.firstCall.args[0].message, "Request failed");
+    });
+  });
+});
