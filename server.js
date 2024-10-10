@@ -1,47 +1,46 @@
-var request      = require("request")
-  , express      = require("express")
-  , morgan       = require("morgan")
-  , path         = require("path")
-  , bodyParser   = require("body-parser")
-  , async        = require("async")
-  , cookieParser = require("cookie-parser")
-  , session      = require("express-session")
-  , config       = require("./config")
-  , helpers      = require("./helpers")
-  , cart         = require("./api/cart")
-  , catalogue    = require("./api/catalogue")
-  , orders       = require("./api/orders")
-  , user         = require("./api/user")
-  , metrics      = require("./api/metrics")
-  , app          = express()
+const express = require("express");
+const morgan = require("morgan");
+const cookieParser = require("cookie-parser");
+const session = require("express-session");
+const config = require("./config");
+const helpers = require("./helpers");
+const cart = require("./api/cart");
+const catalogue = require("./api/catalogue");
+const orders = require("./api/orders");
+const user = require("./api/user");
+const metrics = require("./api/metrics");
 
+const app = express();
 
+// Middleware for handling slash rewrites and static files
 app.use(helpers.rewriteSlash);
 app.use(metrics);
 app.use(express.static("public"));
-if(process.env.SESSION_REDIS) {
-    console.log('Using the redis based session manager');
+
+// Session management setup with Redis fallback to local session manager
+if (config.session_redis.store) {
+    console.log('Using Redis-based session manager');
     app.use(session(config.session_redis));
-}
-else {
-    console.log('Using local session manager');
+} else {
+    console.log('Using in-memory session manager');
     app.use(session(config.session));
 }
 
-app.use(bodyParser.json());
+// Built-in Express middleware for parsing JSON and URL-encoded data
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(helpers.sessionMiddleware);
-app.use(morgan("dev", {}));
+app.use(morgan("dev"));
 
-var domain = "";
-process.argv.forEach(function (val, index, array) {
-  var arg = val.split("=");
-  if (arg.length > 1) {
-    if (arg[0] == "--domain") {
-      domain = arg[1];
-      console.log("Setting domain to:", domain);
+// Domain setup from command line arguments
+let domain = "";
+process.argv.forEach((val) => {
+    const [key, value] = val.split("=");
+    if (key === "--domain" && value) {
+        domain = value;
+        console.log("Setting domain to:", domain);
     }
-  }
 });
 
 /* Mount API endpoints */
@@ -50,9 +49,11 @@ app.use(catalogue);
 app.use(orders);
 app.use(user);
 
+// Error handling middleware
 app.use(helpers.errorHandler);
 
-var server = app.listen(process.env.PORT || 8079, function () {
-  var port = server.address().port;
-  console.log("App now running in %s mode on port %d", app.get("env"), port);
+// Start the server
+const PORT = process.env.PORT || 8079;
+app.listen(PORT, () => {
+    console.log(`App now running in ${app.get("env")} mode on port ${PORT}`);
 });

@@ -1,48 +1,53 @@
-(function (){
-  'use strict';
+'use strict';
 
-  var express = require("express")
-    , client  = require('prom-client')
-    , app     = express()
+const express = require("express");
+const client = require('prom-client');
+const app = express();
 
-  const metric = {
-    http: {
-      requests: {
-        duration: new client.Histogram('request_duration_seconds', 'request duration in seconds', ['service', 'method', 'route', 'status_code']),
-      }
-    }
+const metric = {
+  http: {
+    requests: {
+      duration: new client.Histogram({
+        name: 'request_duration_seconds',
+        help: 'Request duration in seconds',
+        labelNames: ['service', 'method', 'route', 'status_code'],
+      }),
+    },
+  },
+};
+
+// Helper function to calculate the duration in seconds
+const calculateDuration = (start) => {
+  const diff = process.hrtime(start);
+  return (diff[0] * 1e9 + diff[1]) / 1e9;
+};
+
+// Observes the request metrics
+const observeRequest = (method, path, statusCode, start) => {
+  const route = path.toLowerCase();
+  if (route !== '/metrics' && route !== '/metrics/') {
+    const duration = calculateDuration(start);
+    metric.http.requests.duration.labels('front-end', method.toLowerCase(), route, statusCode).observe(duration);
   }
+};
 
-  function s(start) {
-    var diff = process.hrtime(start);
-    return (diff[0] * 1e9 + diff[1]) / 1000000000;
-  }
+// Middleware to track request durations
+const metricsMiddleware = (req, res, next) => {
+  const start = process.hrtime();
 
-  function observe(method, path, statusCode, start) {
-    var route = path.toLowerCase();
-    if (route !== '/metrics' && route !== '/metrics/') {
-        var duration = s(start);
-        var method = method.toLowerCase();
-        metric.http.requests.duration.labels('front-end', method, route, statusCode).observe(duration);
-    }
-  };
-
-  function middleware(request, response, done) {
-    var start = process.hrtime();
-
-    response.on('finish', function() {
-      observe(request.method, request.path, response.statusCode, start);
-    });
-
-    return done();
-  };
-
-
-  app.use(middleware);
-  app.get("/metrics", function(req, res) {
-      res.header("content-type", "text/plain");
-      return res.end(client.register.metrics())
+  res.on('finish', () => {
+    observeRequest(req.method, req.path, res.statusCode, start);
   });
 
-  module.exports = app;
-}());
+  next();
+};
+
+app.use(metricsMiddleware);
+
+// Endpoint to expose metrics
+app.get("/metrics", (req, res) => {
+  res.header("content-type", "text/plain");
+  res.end(client.register.metrics());
+});
+
+module.exports = app;

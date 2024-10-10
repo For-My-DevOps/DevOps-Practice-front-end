@@ -1,28 +1,24 @@
-(function (){
-  'use strict';
+'use strict';
 
-  var util = require('util');
+let domain = "";
 
-  var domain = "";
-  process.argv.forEach(function (val, index, array) {
-    var arg = val.split("=");
-    if (arg.length > 1) {
-      if (arg[0] == "--domain") {
-        domain = "." + arg[1];
+// Extract domain from command line arguments
+process.argv.forEach((val) => {
+    const [key, value] = val.split("=");
+    if (key === "--domain" && value) {
+        domain = `.${value}`;
         console.log("Setting domain to:", domain);
-      }
     }
-  });
+});
 
-  module.exports = {
-    catalogueUrl:  util.format("http://catalogue%s", domain),
-    tagsUrl:       util.format("http://catalogue%s/tags", domain),
-    cartsUrl:      util.format("http://carts%s/carts", domain),
-    ordersUrl:     util.format("http://orders%s", domain),
-    customersUrl:  util.format("http://user%s/customers", domain),
-    addressUrl:    util.format("http://user%s/addresses", domain),
-    cardsUrl:      util.format("http://user%s/cards", domain),
-    loginUrl:      util.format("http://user%s/login", domain),
-    registerUrl:   util.format("http://user%s/register", domain),
-  };
-}());
+module.exports = {
+    catalogueUrl: `http://catalogue${domain}`,
+    tagsUrl: `http://catalogue${domain}/tags`,
+    cartsUrl: `http://carts${domain}/carts`,
+    ordersUrl: `http://orders${domain}`,
+    customersUrl: `http://user${domain}/customers`,
+    addressUrl: `http://user${domain}/addresses`,
+    cardsUrl: `http://user${domain}/cards`,
+    loginUrl: `http://user${domain}/login`,
+    registerUrl: `http://user${domain}/register`
+};
